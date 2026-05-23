@@ -4,6 +4,7 @@ import items.Armor;
 import items.Item;
 import items.Spell;
 import items.Weapon;
+import model.Cell;
 import model.GameMap;
 import model.Hero;
 import model.Monster;
@@ -13,8 +14,10 @@ import java.io.*;
 import java.util.*;
 
 /**
- * Handles all input and output of the application
- * saved in a (key=value) format. For example:
+ * Handles all file input and output for the application.
+ * Save format is key=value one per line.
+ * For example:
+ *
  * hero.race=human
  * hero.strength=30
  * hero.mana=20
@@ -30,7 +33,7 @@ import java.util.*;
  * state=EXPLORING
  * grid.rows=11
  * grid.cols=11
- * grid.0=###########       (each row is saved at its index)
+ * grid.0=###########
  * grid.1=#.........#
  * ...
  * exit=9|9
@@ -41,12 +44,11 @@ import java.util.*;
 public class FileManager {
 
     /**
-     *
      * Loads just the map from a level file containing only wall '#' and walkable '.'
-     * characters. Then use MapGenerator.populate() to add the game characters to the map
+     * characters. Then use MapGenerator.populate() to add the game entities
      *
      * @param path path to the level file
-     * @return GameMap containing only the raw grid
+     * @return GameMap containing only the raw cell grid
      * @throws IOException if the file cannot be read or is empty
      */
     public static GameMap loadMap(String path) throws IOException {
@@ -54,26 +56,34 @@ public class FileManager {
         if (lines.isEmpty()) throw new IOException("Map file is empty: " + path);
 
         int cols = lines.stream().mapToInt(String::length).max().orElse(0);
-        char[][] grid = new char[lines.size()][cols];
-        for (int r = 0; r < lines.size(); r++) {
-            String row = lines.get(r);
-            for (int c = 0; c < cols; c++)
-                grid[r][c] = c < row.length() ? row.charAt(c) : '#';
+        List<List<Cell>> cells = new ArrayList<>();
+        for (String line : lines) {
+            List<Cell> row = new ArrayList<>();
+            for (int c = 0; c < cols; c++) {
+                char ch = c < line.length() ? line.charAt(c) : '#';
+                row.add(charToCell(ch));
+            }
+            cells.add(row);
         }
-        return new GameMap(grid);
+        return new GameMap(cells);
     }
 
     /**
      * Writes a raw game grid to a file, one row per line.
-     * Only '#' and '.' characters are expected, no population data
+     * Only '#' and '.' characters are expected, no game entities are saved
      *
-     * @param grid the 2-D character array to write
-     * @param path destination file path
-     * @throws IOException
+     * @param cells the cell grid to write
+     * @param path  destination file path
+     * @throws IOException if the file cannot be written
      */
-    public static void saveMaze(char[][] grid, String path) throws IOException {
+    public static void saveMaze(List<List<Cell>> cells, String path) throws IOException {
         try (PrintWriter pw = new PrintWriter(new FileWriter(path))) {
-            for (char[] row : grid) pw.println(new String(row));
+            for (List<Cell> row : cells) {
+                StringBuilder sb = new StringBuilder();
+                for (Cell cell : row)
+                    sb.append(cell.isWall() ? '#' : '.');
+                pw.println(sb.toString());
+            }
         }
     }
 
@@ -82,15 +92,15 @@ public class FileManager {
      * Monsters and treasures are written as indexed entries monster.0 , treasure.0.
      * Only living monsters are saved
      *
-     * @param path         destination file path
-     * @param hero         the hero whose stats and equipment to save
-     * @param map          the current GameMap
+     * @param path destination file path
+     * @param hero the hero whose stats and equipment to save
+     * @param map the current GameMap
      * @param currentLevel the level number
-     * @param state        the Game.State name string
+     * @param state the Game.State name string
      * @throws IOException if the file cannot be written
      */
-    public static void saveGame(String path, Hero hero, GameMap map, int currentLevel, String state) throws IOException {
-
+    public static void saveGame(String path, Hero hero, GameMap map,
+                                int currentLevel, String state) throws IOException {
         try (PrintWriter pw = new PrintWriter(new FileWriter(path))) {
             pw.println("hero.race=" + hero.getRace());
             pw.println("hero.strength=" + hero.getStrength());
@@ -108,11 +118,14 @@ public class FileManager {
             pw.println("grid.rows=" + map.getRows());
             pw.println("grid.cols=" + map.getCols());
 
-            char[][] grid = map.getGrid();
-            for (int r = 0; r < grid.length; r++)
-                pw.println("grid." + r + "=" + new String(grid[r]));
+            List<List<Cell>> cells = map.getCells();
+            for (int r = 0; r < map.getRows(); r++) {
+                StringBuilder sb = new StringBuilder();
+                for (Cell cell : cells.get(r)) sb.append(cell.toChar());
+                pw.println("grid." + r + "=" + sb);
+            }
 
-            pw.println("exit=" + map.getExitRow()  + "|" + map.getExitCol());
+            pw.println("exit=" + map.getExitRow() + "|" + map.getExitCol());
             pw.println("start=" + map.getStartRow() + "|" + map.getStartCol());
 
             int mi = 0;
@@ -136,12 +149,11 @@ public class FileManager {
     }
 
     /**
-     * Reads a saved file in the same format written by saveGame()
-     * and reconstructs all game state
+     * Reads a save file written by saveGame() and reconstructs the full game state.
      *
      * @param path path to the save file
      * @return a populated SaveData container
-     * @throws IOException if the file cannot be read or a key is missing
+     * @throws IOException if the file cannot be read or a required key is missing
      */
     public static SaveData loadGame(String path) throws IOException {
         Map<String, String> kv = readKeyValues(path);
@@ -173,18 +185,22 @@ public class FileManager {
         data.currentLevel = getInt(kv, "level");
         data.state = get(kv, "state");
 
-        // Grid
+        // Grid — build Cell objects from saved characters
         int rows = getInt(kv, "grid.rows");
         int cols = getInt(kv, "grid.cols");
-        char[][] grid = new char[rows][cols];
+        List<List<Cell>> cells = new ArrayList<>();
         for (int r = 0; r < rows; r++) {
-            String row = get(kv, "grid." + r);
-            for (int c = 0; c < cols; c++)
-                grid[r][c] = c < row.length() ? row.charAt(c) : '#';
+            String line = get(kv, "grid." + r);
+            List<Cell> row = new ArrayList<>();
+            for (int c = 0; c < cols; c++) {
+                char ch = c < line.length() ? line.charAt(c) : '#';
+                row.add(charToCell(ch));
+            }
+            cells.add(row);
         }
-        data.map = new GameMap(grid);
+        data.map = new GameMap(cells);
 
-        // Exit and start
+        // Exit and start coordinates
         String[] exit = get(kv, "exit").split("\\|");
         data.map.setExitRow(Integer.parseInt(exit[0]));
         data.map.setExitCol(Integer.parseInt(exit[1]));
@@ -209,28 +225,30 @@ public class FileManager {
         while (kv.containsKey("treasure." + ti)) {
             String[] p = kv.get("treasure." + ti).split("\\|", 5);
             Item item = Item.fromSaveString(p[2] + " " + p[3] + " " + p[4]);
-            if (item != null) data.map.addTreasure(Integer.parseInt(p[0]), Integer.parseInt(p[1]), item);
+            if (item != null)
+                data.map.addTreasure(Integer.parseInt(p[0]), Integer.parseInt(p[1]), item);
             ti++;
         }
 
         return data;
     }
 
-    /**
-     * @return "NONE" for a null item, or "name|bonusPercent"
-     */
+    // Private helpers
+
+    /** Converts a saved character to the appropriate Cell type. */
+    private static Cell charToCell(char ch) {
+        if (ch == '#') return new Cell(Cell.Type.WALL);
+        if (ch == 'E') return new Cell(Cell.Type.EXIT);
+        return new Cell(Cell.Type.FLOOR);
+    }
+
+    /** Returns "NONE" for a null item, otherwise "name|bonusPercent". */
     private static String itemLine(Item item) {
         if (item == null) return "NONE";
         return item.getName() + "|" + item.getBonusPercent();
     }
 
-    /**
-     * Reads a key=value file into a map, splitting on the first '=' on each line
-     *
-     * @param path file to read
-     * @return ordered map of key : value pairs
-     * @throws IOException if the file cannot be read
-     */
+    /** Reads a key=value file into an ordered map, splitting on the first '='. */
     private static Map<String, String> readKeyValues(String path) throws IOException {
         Map<String, String> map = new LinkedHashMap<>();
         try (BufferedReader br = new BufferedReader(new FileReader(path))) {
@@ -245,31 +263,19 @@ public class FileManager {
         return map;
     }
 
-    /**
-     * Returns the value for key from the map, or throws if absent
-     *
-     * @throws IOException if the key does not exist in the save file
-     */
+    /** Returns the value for a key, or throws if the key is absent. */
     private static String get(Map<String, String> kv, String key) throws IOException {
         String v = kv.get(key);
         if (v == null) throw new IOException("Missing key in save file: " + key);
         return v;
     }
 
-    /**
-     * helper wrapper that parses get() as an integer
-     */
+    /** Parses the value for a key as an integer. */
     private static int getInt(Map<String, String> kv, String key) throws IOException {
         return Integer.parseInt(get(kv, key));
     }
 
-    /**
-     * Reads all non-null lines from a file into a list
-     *
-     * @param path file to read
-     * @return list of raw lines
-     * @throws IOException if the file cannot be read
-     */
+    /** Reads all non-blank lines from a file into a list. */
     private static List<String> readLines(String path) throws IOException {
         List<String> lines = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new FileReader(path))) {
@@ -279,19 +285,9 @@ public class FileManager {
         return lines;
     }
 
-    /**
-     *
-     * @param s string to check
-     * @return true if s can be parsed as an integer
-     */
-    private static boolean isInteger(String s) {
-        try { Integer.parseInt(s); return true; } catch (NumberFormatException e) { return false; }
-    }
+    // Data container
 
-
-    /**
-     * Plain data container returned by loadGame()
-     */
+    /** Plain data container returned by loadGame(). */
     public static class SaveData {
         public Hero hero;
         public GameMap map;

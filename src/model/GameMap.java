@@ -3,24 +3,26 @@ package model;
 import items.Item;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Represents the game map grid for a single game level
- * Cell symbols:
+ * Represents the game map grid for a single level.
+ * The grid is a List of rows, each row is a List of Cell objects.
+ * Each Cell owns its own monster and treasure reference
+ *
+ * Cell symbols (used when rendering):
  *  '#' – wall
  *  '.' – walkable floor
  *  'T' – treasure item
  *  'M' – monster
  *  'E' – exit
- *  '@' – hero position (used only when printing)
- * The hero starts at the top-left free cell and must reach the exit at bottom-right
+ *  '@' – hero position (injected during render only)
  */
 public class GameMap {
 
-    private final char[][] grid;
+    private final List<List<Cell>> cells;
     private final int rows;
     private final int cols;
     private int startRow;
@@ -29,136 +31,211 @@ public class GameMap {
     private int exitCol;
 
     /**
-     *  All living monsters on this map.
-     */
-    private final List<Monster> monsters;
-    /**
-     * "row,col" is the key String pointing to the Item sitting on that cell
-     * Item exists until its being picked up or discarded
-     */
-    private final Map<String, Item> treasures;
-
-
-    /**
-     * Builds the GameMap from a passed grid, monsters and treasures must be added separately by
-     * addMonster(Monster) and addTreasure(int, int, Item)
+     * Builds the GameMap from a cell grid.
+     * Monsters and treasures must be added separately by
+     * addMonster() and addTreasure().
      *
-     * @param grid rectangular char array
+     * @param cells 2D list of cell rows
      */
-    public GameMap(char[][] grid) {
-        this.rows = grid.length;
-        this.cols = grid[0].length;
-        this.grid = grid;
-        this.monsters = new ArrayList<>();
-        this.treasures = new HashMap<>();
+    public GameMap(List<List<Cell>> cells) {
+        this.cells = cells;
+        this.rows = cells.size();
+        this.cols = cells.get(0).size();
     }
 
-    public char getCell(int row, int col) { return grid[row][col]; }
-
-    public void setCell(int row, int col, char c) { grid[row][col] = c; }
-
-    public boolean isWall(int row, int col) { return grid[row][col] == '#'; }
+    /**
+     * Gets a cell at row and col
+     * @param row index
+     * @param col index
+     * @return cell at row,col
+     */
+    public Cell getCell(int row, int col) {
+        return cells.get(row).get(col);
+    }
 
     /**
-     * Checks if coordinates are inside map's bounds
-     * @param row row coordinate
-     * @param col col coordinate
-     * @return boolean
+     * Checks if there is a wall on the coordinates
+     * @param row index
+     * @param col index
+     * @return true if cell is a wall
+     */
+    public boolean isWall(int row, int col) {
+        return cells.get(row).get(col).isWall();
+    }
+
+    /**
+     * Checks if coordinates are inside map bounds
+     * @param row index
+     * @param col index
+     * @return true if the coordinates are inside the map border
      */
     public boolean inBounds(int row, int col) {
         return row >= 0 && row < rows && col >= 0 && col < cols;
     }
 
     /**
-     * Adds monster to the List and on the map
-     * @param monster monster to add on the map
+     * Places a monster on its cell
+     * @param monster instance to place
      */
     public void addMonster(Monster monster) {
-        monsters.add(monster);
-        grid[monster.getPosition().getRow()][monster.getPosition().getCol()] = 'M';
+        Position p = monster.getPosition();
+        cells.get(p.getRow()).get(p.getCol()).setMonster(monster);
     }
 
     /**
-     * Returns the monster if present on field coordinates
-     * @param row row to look for monster
-     * @param col col to look for monster
-     * @return monster at specified coordinates
+     * @param row index
+     * @param col index
+     * @return the living monster at the given cell, or null.
      */
     public Monster monsterAt(int row, int col) {
-        for (Monster m : monsters) {
-            if (m.isAlive() && m.getPosition().getRow() == row && m.getPosition().getCol() == col) {
-                return m;
-            }
-        }
-        return null;
-    }
-
-    public void removeMonster(Monster monster) {
-        monsters.remove(monster);
-        grid[monster.getPosition().getRow()][monster.getPosition().getCol()] = '.';
-    }
-
-    public void addTreasure(int row, int col, Item item) {
-        treasures.put(row + "," + col, item);
-        grid[row][col] = 'T';
-    }
-
-    public Item treasureAt(int row, int col) {
-        return treasures.get(row + "," + col);
-    }
-
-    public void removeTreasure(int row, int col) {
-        treasures.remove(row + "," + col);
-        if (grid[row][col] == 'T') grid[row][col] = '.';
+        Monster m = cells.get(row).get(col).getMonster();
+        return (m != null && m.isAlive()) ? m : null;
     }
 
     /**
-     * Prints the map on screen and hero is shown as '@'
-     * @param heroRow hero current row
-     * @param heroCol hero current col
-     * @return the map string
+     * Clears the monster reference from its cell.
+     * @param monster reference
+     */
+    public void removeMonster(Monster monster) {
+        Position p = monster.getPosition();
+        cells.get(p.getRow()).get(p.getCol()).setMonster(null);
+    }
+
+    /**
+     * Places a treasure on the given cell.
+     * @param row index
+     * @param col index
+     * @param item reference
+     */
+    public void addTreasure(int row, int col, Item item) {
+        cells.get(row).get(col).setTreasure(item);
+    }
+
+    /**
+     * Returns the treasure at the given cell, or null.
+     * @param row index
+     * @param col index
+     * @return item reference
+     */
+    public Item treasureAt(int row, int col) {
+        return cells.get(row).get(col).getTreasure();
+    }
+
+    /**
+     * Clears the treasure reference from the given cell.
+     * @param row index
+     * @param col index
+     */
+    public void removeTreasure(int row, int col) {
+        cells.get(row).get(col).setTreasure(null);
+    }
+
+    /**
+     * Marks a cell as the exit and records its coordinates.
+     * Replaces the cell at that position with a new EXIT cell.
+     * @param row index
+     * @param col index
+     */
+    public void markExit(int row, int col) {
+        exitRow = row;
+        exitCol = col;
+        cells.get(row).set(col, new Cell(Cell.Type.EXIT));
+    }
+
+    /**
+     * Renders the map as a string, placing '@' at the hero position.
+     * @param heroRow index
+     * @param heroCol index
+     * @return string representation of the map grid with game entitites
      */
     public String render(int heroRow, int heroCol) {
         StringBuilder sb = new StringBuilder();
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
                 if (r == heroRow && c == heroCol) sb.append('@');
-                else sb.append(grid[r][c]);
+                else sb.append(cells.get(r).get(c).toChar());
             }
             sb.append('\n');
         }
         return sb.toString();
     }
 
-    public int getRows() { return rows; }
-
-    public int getCols() { return cols; }
+    /**
+     * Collects all monsters currently on the map by iterating cells.
+     * Used by FileManager for save serialisation.
+     *
+     * @return List of monsters
+     */
+    public List<Monster> getMonsters() {
+        List<Monster> result = new ArrayList<>();
+        for (List<Cell> row : cells) {
+            for (Cell cell : row) {
+                if (cell.getMonster() != null) result.add(cell.getMonster());
+            }
+        }
+        return result;
+    }
 
     /**
-     * @return list of all monsters (including dead ones until removed)
-     * */
-    public List<Monster> getMonsters() { return monsters; }
+     * Collects all treasures currently on the map
+     * Used by FileManager for save serialisation.
+     * @return Map of treasures
+     */
+    public Map<String, Item> getTreasures() {
+        Map<String, Item> result = new LinkedHashMap<>();
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                Item t = cells.get(r).get(c).getTreasure();
+                if (t != null) result.put(r + "," + c, t);
+            }
+        }
+        return result;
+    }
 
-    /**
-     * @return treasure map keyed by "row,col"
-     * */
-    public Map<String, Item> getTreasures() { return treasures; }
 
-    public char[][] getGrid() { return grid; }
+    // Getters and Setters
 
-    public int getStartRow() { return startRow; }
+    public List<List<Cell>> getCells() {
+        return cells;
+    }
 
-    public void setStartRow(int startRow) { this.startRow = startRow; }
+    public int getRows() {
+        return rows;
+    }
 
-    public int getStartCol() { return startCol; }
+    public int getCols() {
+        return cols;
+    }
 
-    public void setStartCol(int startCol) { this.startCol = startCol; }
+    public int getStartRow() {
+        return startRow;
+    }
 
-    public int getExitRow() { return exitRow; }
+    public void setStartRow(int r) {
+        this.startRow = r;
+    }
 
-    public void setExitRow(int exitRow) { this.exitRow = exitRow; }
+    public int getStartCol() {
+        return startCol;
+    }
 
-    public int getExitCol() { return exitCol; }
+    public void setStartCol(int c) {
+        this.startCol = c;
+    }
 
-    public void setExitCol(int exitCol) { this.exitCol = exitCol; }
+    public int getExitRow() {
+        return exitRow;
+    }
+
+    public void setExitRow(int r) {
+        this.exitRow = r;
+    }
+
+    public int getExitCol() {
+        return exitCol;
+    }
+
+    public void setExitCol(int c) {
+        this.exitCol = c;
+    }
 }

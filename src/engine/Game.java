@@ -39,7 +39,7 @@ public class Game {
     }
 
      // CONSTANTS
-    static final int MAX_LEVEL = 5; // maximum number of game levels
+    static final int MAX_LEVEL = 5;
     private static final Map<String, int[]> DIRECTION_DELTAS = new HashMap<>();
 
     static {
@@ -60,8 +60,6 @@ public class Game {
     private int pendingTreasureRow;
     private int pendingTreasureCol;
 
-    // methods are (package-private) called from Session
-
     /**
      * starts a new game with a hero from race, loads level 1,
      * either loaded from the level1.txt file or gets generated
@@ -69,7 +67,7 @@ public class Game {
      * @param race the chosen hero race
      * @return Message string
      */
-    String newGame(String race) {
+    public String newGame(String race) {
         if (!race.equals("human") && !race.equals("mage") && !race.equals("warrior")) {
             return "Unknown race '" + race + "'. Choose: human | mage | warrior";
         }
@@ -98,7 +96,7 @@ public class Game {
      * @param filename path to the save file
      * @return Message string
      */
-    String loadGame(String filename) {
+    public String loadGame(String filename) {
         if (filename.isBlank()) return "Usage: load_game <filename>";
         try {
             restore(FileManager.loadGame(filename));
@@ -116,7 +114,7 @@ public class Game {
      * @param filename path to write the save file
      * @return Message string
      */
-    String saveGame(String filename) {
+    public String saveGame(String filename) {
         if (filename.isBlank()) return "Usage: save_game <filename>";
         try {
             FileManager.saveGame(filename, hero, map, currentLevel, state.name());
@@ -132,7 +130,7 @@ public class Game {
      * @param levelStr level number
      * @return result message with map or an error string
      */
-    String loadLevel(String levelStr) {
+    public String loadLevel(String levelStr) {
         try {
             int n = Integer.parseInt(levelStr);
             LevelConfig cfg = new LevelConfig(n);
@@ -149,7 +147,7 @@ public class Game {
         }
     }
 
-    String showMap() {
+    public String showMap() {
         return "=== MAP (Level " + currentLevel + ") ===\n"
                 + map.render(hero.getPosition().getRow(), hero.getPosition().getCol());
     }
@@ -157,7 +155,7 @@ public class Game {
     /**
      * @return hero current stats and game state
      */
-    String stats() {
+    public String stats() {
         return String.format(
                 "=== HERO STATS ===%n" +
                 "Race:     %s%n" +
@@ -176,7 +174,7 @@ public class Game {
     /**
      * @return hero's equipped weapon, spell, and armor
      */
-    String inventory() {
+    public String inventory() {
         return String.format(
                 "=== INVENTORY ===%n" +
                 "Weapon: %s%n" +
@@ -196,7 +194,7 @@ public class Game {
      * @param direction either "up", "down", "left" or "right"
      * @return a result message
      */
-    String move(String direction) {
+    public String move(String direction) {
         int[] delta = DIRECTION_DELTAS.get(direction);
         if (delta == null) {
             return "Unknown direction '" + direction + "'. Use: up | down | left | right";
@@ -246,7 +244,7 @@ public class Game {
      * @param type "power" or "spell"
      * @return message explaining the fight events
      */
-    String attack(String type) {
+    public String attack(String type) {
         if (!type.equals("power") && !type.equals("spell")) {
             return "Usage: attack power | attack spell";
         }
@@ -277,7 +275,7 @@ public class Game {
     /**
      * @return a health summary for both combatants if in combat
      */
-    String combatStatus() {
+    public String combatStatus() {
         if (combatEngine == null) return "Not in combat.";
         return combatEngine.status();
     }
@@ -288,7 +286,7 @@ public class Game {
      * @param choice "equip"or "discard"
      * @return confirmation message
      */
-    String loot(String choice) {
+    public String loot(String choice) {
         if (pendingTreasure == null) return "No treasure pending.";
         String msg;
         if (choice.equals("equip")) {
@@ -312,7 +310,7 @@ public class Game {
      * @param amtStr string representation of the point amount
      * @return confirmation or error message
      */
-    String allocate(String stat, String amtStr) {
+    public String allocate(String stat, String amtStr) {
         if (stat.isBlank() || amtStr.isBlank()) return "Usage: allocate <strength|mana|health> <points>";
         int amt;
         try { amt = Integer.parseInt(amtStr); }
@@ -335,7 +333,7 @@ public class Game {
      *
      * @return confirmation with updated stats, or an error if points remain
      */
-    String allocateDone() {
+    public String allocateDone() {
         if (hero.getPendingPoints() > 0) {
             return "You still have " + hero.getPendingPoints()
                     + " points left. Allocate them all before finishing.";
@@ -354,7 +352,7 @@ public class Game {
      *
      * @return message with map display, or victory message
      */
-    String nextLevel() {
+    public String nextLevel() {
         if (currentLevel >= MAX_LEVEL) {
             state = State.VICTORY;
             return "*** YOU WIN! ***\n"
@@ -384,7 +382,7 @@ public class Game {
     /**
      * @return a list of all available game commands
      */
-    String help() {
+    public String help() {
         return "=== GAME COMMANDS ===\n"
                 + "new_game <race>           - Start new game (human/mage/warrior)\n"
                 + "load_game <file>          - Load saved game\n"
@@ -411,7 +409,7 @@ public class Game {
      * Resets all game state to the initial idle
      * Called by Session when a file is closed or reopened
      */
-    void resetGameState() {
+    public void resetGameState() {
         state = State.IDLE;
         hero = null;
         map = null;

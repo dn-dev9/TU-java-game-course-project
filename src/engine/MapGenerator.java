@@ -5,63 +5,65 @@ import items.Armor;
 import items.Item;
 import items.Spell;
 import items.Weapon;
+import model.Cell;
 import model.GameMap;
 import model.Monster;
 import model.Position;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
 
 /**
- * Builds maps and populates them
- * Maze for levels are generated once ans saved to level{i}.txt files
- * Population - randomply places the treasures T, monsters M, exit E
+ * Builds maps and populates them with monsters, treasures, and an exit.
+ * Level maze files are generated once and saved to level{n}.txt.
+ * Population randomply places monsters M, treasures T, and the exit E.
  */
 public class MapGenerator {
 
     private static final Random RNG = new Random();
-    private static final int[][] DIRS = {{-2, 0}, {2, 0}, {0, -2}, {0, 2}}; // directions have a step of 2
+    private static final List<int[]> DIRS = List.of(
+            new int[]{-2, 0},
+            new int[]{ 2, 0},
+            new int[]{ 0, -2},
+            new int[]{ 0, 2}
+    );
 
     /**
-     * Generates all level files from level 1 to Game.Max_LEVEL if they dont already exist
-     * @throws IOException
+     * Generates all level files from level 1 to Game.MAX_LEVEL if they don't already exist.
      */
     public static void generateLevelFiles() throws IOException {
         for (int i = 1; i <= Game.MAX_LEVEL; i++) {
             File f = new File("level" + i + ".txt");
             if (!f.exists()) {
                 LevelConfig cfg = new LevelConfig(i);
-                char[][] grid = buildMaze(oddDim(cfg.getRows()), oddDim(cfg.getCols()));
-                FileManager.saveMaze(grid, f.getPath());
+                List<List<Cell>> cells = buildMaze(oddDim(cfg.getRows()), oddDim(cfg.getCols()));
+                FileManager.saveMaze(cells, f.getPath());
             }
         }
     }
 
     /**
-     * Populates the bare map with a:
-     *  start position
-     *  exit
-     *  monsters
-     *  trasures
-     * @param map
-     * @param cfg
+     * Populates a bare map with a start position, exit, monsters, and treasures.
+     *
+     * @param map the empty map to populate
+     * @param cfg level configuration (counts, level number)
      */
     public static void populate(GameMap map, LevelConfig cfg) {
-        char[][] grid = map.getGrid();
-        int rows = grid.length;
-        int cols = grid[0].length;
+        int rows = map.getRows();
+        int cols = map.getCols();
 
         map.setStartRow(1);
         map.setStartCol(1);
 
         int exitRow = rows - 2;
         int exitCol = cols - 2;
-        map.setExitRow(exitRow);
-        map.setExitCol(exitCol);
-        map.setCell(exitRow, exitCol, 'E');
+        map.markExit(exitRow, exitCol);
 
-        List<Position> free = freeCells(grid, rows, cols, 1, 1, exitRow, exitCol);
+        List<Position> free = freeCells(map.getCells(), rows, cols, 1, 1, exitRow, exitCol);
 
         for (int i = 0; i < cfg.getMonsterCount() && !free.isEmpty(); i++) {
             Position pos = free.remove(RNG.nextInt(free.size()));
@@ -76,76 +78,80 @@ public class MapGenerator {
     }
 
     /**
-     * Generates a map and is used as a fallback if a level file cannot be read
+     * Generates a map and is used as a fallback if a level file cannot be read.
+     *
+     * @param cfg LevelConfig object containing map's features
+     * @return the map cell grid
      */
     public static GameMap generate(LevelConfig cfg) {
-        char[][] grid = buildMaze(oddDim(cfg.getRows()), oddDim(cfg.getCols()));
-        GameMap map = new GameMap(grid);
+        List<List<Cell>> cells = buildMaze(oddDim(cfg.getRows()), oddDim(cfg.getCols()));
+        GameMap map = new GameMap(cells);
         populate(map, cfg);
         return map;
     }
 
     /**
-     * Creates the ready to use maze
-     *  rows and cols must be off for the carve algorithm to work
+     * Builds a maze as a List of Cell rows.
+     * Rows and cols must be odd for the DFS carver algorithm to work correctly.
+     *
      * @param rows row count
      * @param cols column count
      * @return the finished grid
      */
-    private static char[][] buildMaze(int rows, int cols) {
-        char[][] grid = new char[rows][cols];
-        for (int r = 0; r < rows; r++)
+    private static List<List<Cell>> buildMaze(int rows, int cols) {
+        List<List<Cell>> cells = new ArrayList<>();
+        for (int r = 0; r < rows; r++) {
+            List<Cell> row = new ArrayList<>();
             for (int c = 0; c < cols; c++)
-                grid[r][c] = '#';
-        carve(grid, 1, 1, rows, cols);
-        return grid;
+                row.add(new Cell(Cell.Type.WALL));
+            cells.add(row);
+        }
+        carve(cells, 1, 1, rows, cols);
+        return cells;
     }
 
     /**
-     * A recursive DFS backtracking algorithm which marks a cell as visited and then
-     * visits each unvisited neighbour  randomly 2 steps away
-     * Guarantees that each odd interior cell will be visited at least once
-     * so a path from start to end is also guaranteed!
+     * Recursive DFS backtracking maze carver.
+     * Marks the current cell as floor, then visits unvisited neighbours
+     * two steps away in a random order — guaranteeing full connectivity.
      *
-     * @param grid the grid being carved
-     * @param r    current row
-     * @param c    current column
+     * @param cells the grid being carved
+     * @param r current row index
+     * @param c current column index
      * @param rows total row count
      * @param cols total column count
      */
-    private static void carve(char[][] grid, int r, int c, int rows, int cols) {
-        grid[r][c] = '.';
-        List<int[]> dirs = new ArrayList<>(Arrays.asList(DIRS));
+    private static void carve(List<List<Cell>> cells, int r, int c, int rows, int cols) {
+        cells.get(r).set(c, new Cell(Cell.Type.FLOOR));
+        List<int[]> dirs = new ArrayList<>(DIRS);
         Collections.shuffle(dirs, RNG);
         for (int[] d : dirs) {
             int nr = r + d[0];
             int nc = c + d[1];
-            if (nr > 0 && nr < rows - 1 && nc > 0 && nc < cols - 1 && grid[nr][nc] == '#') {
-                grid[r + d[0] / 2][c + d[1] / 2] = '.';
-                carve(grid, nr, nc, rows, cols);
+            if (nr > 0 && nr < rows - 1 && nc > 0 && nc < cols - 1
+                    && cells.get(nr).get(nc).isWall()) {
+                cells.get(r + d[0] / 2).set(c + d[1] / 2, new Cell(Cell.Type.FLOOR));
+                carve(cells, nr, nc, rows, cols);
             }
         }
     }
 
     /**
-     * Collects all floor cells '.' excluding the start and exit positions
-     * start and end positions are excluded
-     * @param grid
-     * @param rows
-     * @param cols
-     * @param startR start cell row
-     * @param startC start cell col
-     * @param exitR  exit cell row
-     * @param exitC  exit cell col
-     * @return shuffleable list of available positions for monster/treasure placement
+     * Lists all floor cells excluding the start and exit positions.
+     *
+     * @return list of available positions for monster/treasure placement
      */
-    private static List<Position> freeCells(char[][] grid, int rows, int cols, int startR, int startC, int exitR, int exitC) {
+    private static List<Position> freeCells(List<List<Cell>> cells, int rows, int cols,
+                                            int startR, int startC, int exitR, int exitC) {
         List<Position> list = new ArrayList<>();
         for (int r = 0; r < rows; r++)
-            for (int c = 0; c < cols; c++)
-                if (grid[r][c] == '.' && !(r == startR && c == startC)
-                        && !(r == exitR && c == exitC))
+            for (int c = 0; c < cols; c++) {
+                Cell cell = cells.get(r).get(c);
+                if (!cell.isWall()
+                        && !(r == startR && c == startC)
+                        && !(r == exitR  && c == exitC))
                     list.add(new Position(r, c));
+            }
         return list;
     }
 
@@ -172,10 +178,6 @@ public class MapGenerator {
         return items;
     }
 
-    /**
-     * makes sure dimensions of maze are always odd for the DFS to work properly
-     * @param n
-     * @return n if odd or n + 1
-     */
+    /** Ensures a dimension is odd, as required by the DFS carver. */
     private static int oddDim(int n) { return n % 2 == 0 ? n + 1 : n; }
 }

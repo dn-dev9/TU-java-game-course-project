@@ -1,5 +1,6 @@
 package engine;
 
+import commands.*;
 import io.FileManager;
 
 import java.io.File;
@@ -10,17 +11,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Middle layer between Game and FileManager commands handling user input
+ * Middle layer between Game and the user.
+ * Handles file management  and routes every
+ * input line to the appropriate Command object for the current game state.
  */
 public class Session {
 
-    @FunctionalInterface
-    private interface Command {
-        String execute(String arg1, String arg2);
-    }
-
     private final Game game = new Game();
-    private String openFilename = null;
+    private String  openFilename = null;
     private boolean running = true;
 
     private final Map<Game.State, Map<String, Command>> stateCommands = new EnumMap<>(Game.State.class);
@@ -31,97 +29,91 @@ public class Session {
     }
 
     /**
-     * Create the allowed command tables according to Game States
+     * Registers Command objects for each game state.
      */
     private void buildCommandTables() {
 
         // IDLE
         Map<String, Command> idleCmds = new HashMap<>();
-        idleCmds.put("new_game", (a, b) -> game.newGame(a));
-        idleCmds.put("load_game", (a, b) -> game.loadGame(a));
+        idleCmds.put("new_game", new NewGameCommand(game));
+        idleCmds.put("load_game", new LoadGameCommand(game));
         stateCommands.put(Game.State.IDLE, idleCmds);
-        fallbackMessages.put(Game.State.IDLE,
-                "No game in progress. Use 'new_game <race>' or 'load_game <file>'.");
+        fallbackMessages.put(Game.State.IDLE, "No game in progress. Use 'new_game <race>' or 'load_game <file>'.");
 
         // EXPLORING
         Map<String, Command> exploringCmds = new HashMap<>();
-        exploringCmds.put("show_map", (a, b) -> game.showMap());
-        exploringCmds.put("stats", (a, b) -> game.stats());
-        exploringCmds.put("inventory", (a, b) -> game.inventory());
-        exploringCmds.put("save_game", (a, b) -> game.saveGame(a));
-        exploringCmds.put("load_game", (a, b) -> game.loadGame(a));
-        exploringCmds.put("load_level", (a, b) -> game.loadLevel(a));
-        exploringCmds.put("move", (a, b) -> game.move(a));
-        exploringCmds.put("next_level", (a, b) -> "Reach the exit (E) first!");
-        exploringCmds.put("combat_status", (a, b) -> "You are not in combat.");
-        exploringCmds.put("attack", (a, b) -> "You are not in combat.");
-        exploringCmds.put("loot", (a, b) -> "There is nothing to loot here.");
-        exploringCmds.put("allocate", (a, b) -> "You have no pending level-up points.");
-        exploringCmds.put("allocate_done", (a, b) -> "You have no pending level-up points.");
+        exploringCmds.put("show_map", new ShowMapCommand(game));
+        exploringCmds.put("stats", new StatsCommand(game));
+        exploringCmds.put("inventory", new InventoryCommand(game));
+        exploringCmds.put("save_game", new SaveGameCommand(game));
+        exploringCmds.put("load_game", new LoadGameCommand(game));
+        exploringCmds.put("load_level", new LoadLevelCommand(game));
+        exploringCmds.put("move", new MoveCommand(game));
+        exploringCmds.put("next_level", new MessageCommand("Reach the exit (E) first!"));
+        exploringCmds.put("combat_status", new MessageCommand("You are not in combat."));
+        exploringCmds.put("attack", new MessageCommand("You are not in combat."));
+        exploringCmds.put("loot", new MessageCommand("There is nothing to loot here."));
+        exploringCmds.put("allocate", new MessageCommand("You have no pending level-up points."));
+        exploringCmds.put("allocate_done", new MessageCommand("You have no pending level-up points."));
         stateCommands.put(Game.State.EXPLORING, exploringCmds);
         fallbackMessages.put(Game.State.EXPLORING, null);
 
         // COMBAT
         Map<String, Command> combatCmds = new HashMap<>();
-        combatCmds.put("attack", (a, b) -> game.attack(a));
-        combatCmds.put("combat_status", (a, b) -> game.combatStatus());
-        combatCmds.put("stats", (a, b) -> game.stats());
-        combatCmds.put("inventory", (a, b) -> game.inventory());
+        combatCmds.put("attack", new AttackCommand(game));
+        combatCmds.put("combat_status", new CombatStatusCommand(game));
+        combatCmds.put("stats", new StatsCommand(game));
+        combatCmds.put("inventory", new InventoryCommand(game));
         stateCommands.put(Game.State.COMBAT, combatCmds);
-        fallbackMessages.put(Game.State.COMBAT,
-                "You are in combat! Use: attack power | attack spell | combat_status");
+        fallbackMessages.put(Game.State.COMBAT, "You are in combat! Use: attack power | attack spell | combat_status");
 
         // LOOT_PENDING
         Map<String, Command> lootCmds = new HashMap<>();
-        lootCmds.put("loot", (a, b) -> game.loot(a));
-        lootCmds.put("stats", (a, b) -> game.stats());
-        lootCmds.put("inventory", (a, b) -> game.inventory());
+        lootCmds.put("loot", new LootCommand(game));
+        lootCmds.put("stats", new StatsCommand(game));
+        lootCmds.put("inventory", new InventoryCommand(game));
         stateCommands.put(Game.State.LOOT_PENDING, lootCmds);
-        fallbackMessages.put(Game.State.LOOT_PENDING,
-                "You found an item! Use: loot equip | loot discard");
+        fallbackMessages.put(Game.State.LOOT_PENDING, "You found an item! Use: loot equip | loot discard");
 
         // LEVEL_UP
         Map<String, Command> levelUpCmds = new HashMap<>();
-        levelUpCmds.put("allocate", (a, b) -> game.allocate(a, b));
-        levelUpCmds.put("allocate_done", (a, b) -> game.allocateDone());
-        levelUpCmds.put("stats", (a, b) -> game.stats());
+        levelUpCmds.put("allocate", new AllocateCommand(game));
+        levelUpCmds.put("allocate_done", new AllocateDoneCommand(game));
+        levelUpCmds.put("stats", new StatsCommand(game));
         stateCommands.put(Game.State.LEVEL_UP, levelUpCmds);
 
         // LEVEL_COMPLETE
         Map<String, Command> levelCompleteCmds = new HashMap<>();
-        levelCompleteCmds.put("next_level", (a, b) -> game.nextLevel());
-        levelCompleteCmds.put("stats", (a, b) -> game.stats());
-        levelCompleteCmds.put("inventory", (a, b) -> game.inventory());
-        levelCompleteCmds.put("show_map", (a, b) -> game.showMap());
-        levelCompleteCmds.put("save_game", (a, b) -> game.saveGame(a));
+        levelCompleteCmds.put("next_level", new NextLevelCommand(game));
+        levelCompleteCmds.put("stats", new StatsCommand(game));
+        levelCompleteCmds.put("inventory", new InventoryCommand(game));
+        levelCompleteCmds.put("show_map", new ShowMapCommand(game));
+        levelCompleteCmds.put("save_game", new SaveGameCommand(game));
         stateCommands.put(Game.State.LEVEL_COMPLETE, levelCompleteCmds);
-        fallbackMessages.put(Game.State.LEVEL_COMPLETE,
-                "Level complete! Use 'next_level' to advance, or 'save_game <file>' to save.");
+        fallbackMessages.put(Game.State.LEVEL_COMPLETE, "Level complete! Use 'next_level' to advance, or 'save_game <file>' to save.");
 
         // GAME_OVER
         Map<String, Command> gameOverCmds = new HashMap<>();
-        gameOverCmds.put("new_game", (a, b) -> game.newGame(a));
-        gameOverCmds.put("load_game", (a, b) -> game.loadGame(a));
+        gameOverCmds.put("new_game", new NewGameCommand(game));
+        gameOverCmds.put("load_game", new LoadGameCommand(game));
         stateCommands.put(Game.State.GAME_OVER, gameOverCmds);
-        fallbackMessages.put(Game.State.GAME_OVER,
-                "Game over. Use 'new_game <race>' to start again or 'load_game <file>'.");
+        fallbackMessages.put(Game.State.GAME_OVER, "Game over. Use 'new_game <race>' to start again or 'load_game <file>'.");
 
         // VICTORY
         Map<String, Command> victoryCmds = new HashMap<>();
-        victoryCmds.put("new_game", (a, b) -> game.newGame(a));
-        victoryCmds.put("load_game", (a, b) -> game.loadGame(a));
+        victoryCmds.put("new_game", new NewGameCommand(game));
+        victoryCmds.put("load_game", new LoadGameCommand(game));
         stateCommands.put(Game.State.VICTORY, victoryCmds);
-        fallbackMessages.put(Game.State.VICTORY,
-                "You have won! Use 'new_game <race>' to play again or 'exit' to quit.");
+        fallbackMessages.put(Game.State.VICTORY, "You have won! Use 'new_game <race>' to play again or 'exit' to quit.");
     }
 
     /**
-     * Runs the appropriate handler for the command tables
-     * either a global command for managing application's state
-     * or a Game command
+     * Processes one line of user input.
+     * File management commands are handled first
+     * game commands are dispatched from the maps.
      *
-     * @param input Dirty input string
-     * @return Game state, File or error message
+     * @param input raw input string
+     * @return response message to display
      */
     public String process(String input) {
         if (input == null || input.isBlank()) return "";
@@ -130,7 +122,7 @@ public class Session {
         String arg1 = parts.length > 1 ? parts[1].toLowerCase() : "";
         String arg2 = parts.length > 2 ? parts[2].toLowerCase() : "";
 
-        // file management layer commands are checked before game commands
+        // File management layer — checked before game commands
         switch (cmd) {
             case "open": return open(arg1);
             case "close": return close();
@@ -149,20 +141,19 @@ public class Session {
         }
 
         if (game.getState() == Game.State.LEVEL_UP) {
-            return "Level up! Distribute " + game.getHero().getPendingPoints()
-                    + " points. Use: allocate <strength|mana|health> <points> | allocate_done";
+            return "Level up! Distribute "
+                    + game.getHero().getPendingPoints() + " points. Use: allocate <strength|mana|health> <points> | allocate_done";
         }
 
         String fallback = fallbackMessages.get(game.getState());
         return fallback != null ? fallback : "Unknown command '" + cmd + "'. Type 'help' for a list.";
     }
 
+    // File Management
+
     /**
-     * Opens a file if not already open, restores game state from file if not empty
-     * or creates a new file and sets it as the current openFilename
-     *
-     * @param filename
-     * @return Message after operation
+     * Opens a file; restores the saved game if the file is not empty or
+     * creates a new empty file if it does not exist.
      */
     private String open(String filename) {
         if (filename.isBlank()) return "Usage: open <filename>";
@@ -180,11 +171,7 @@ public class Session {
         return "Successfully opened " + filename;
     }
 
-    /**
-     * removes the saved openFilename string and resets game state
-     *
-     * @return Message after operation
-     */
+    /** Closes the current file and resets game state without saving. */
     private String close() {
         if (openFilename == null) return "Error: no file is currently open.";
         String name = openFilename;
@@ -193,32 +180,20 @@ public class Session {
         return "Successfully closed " + name;
     }
 
-    /**
-     * Saves current game state to the opened file
-     * @return Message after operation
-     */
+    /** Saves current game state to the open file. */
     private String save() {
         if (openFilename == null) return "Error: no file is currently open.";
         return writeToFile(openFilename);
     }
 
-    /**
-     * Saves current game state to another file
-     *
-     * @param filename file to save the current game
-     * @return Message after operation
-     */
+    /** Saves current game state to a different file. */
     private String saveAs(String filename) {
         if (openFilename == null) return "Error: no file is currently open.";
         if (filename.isBlank()) return "Usage: save as <filename>";
         return writeToFile(filename);
     }
 
-    /**
-     * Saves game progress to a file
-     * @param filename file to overrwrite
-     * @return Message after operation
-     */
+    /** Writes the current game state in a file */
     private String writeToFile(String filename) {
         if (game.getState() == Game.State.IDLE) return "Error: no game in progress to save.";
         try {
@@ -230,17 +205,13 @@ public class Session {
         }
     }
 
-    /**
-     * Lists all file managing commands +
-     * game commands if a file is opened
-     *
-     * @return Commands table string
-     */
+    // help
+
     private String help() {
         String fileHelp =
                 """
                         === FILE COMMANDS ===
-                        *** Application woks with .txt files only ***
+                        *** Application works with .txt files only ***
                         open <file>          - Open a save file (creates it if it does not exist)
                         close                - Close the current file without saving
                         save                 - Save to the current file
