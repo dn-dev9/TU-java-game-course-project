@@ -8,27 +8,18 @@ import items.Item;
  */
 public class Cell {
 
-    /**
-     * The cell Type enum
-     */
-    public enum Type {
-        WALL,
-        FLOOR,
-        EXIT
-    }
-
-    private final Type type;
+    private final CellType type;
     private Monster monster;
     private Item treasure;
 
     /**
      * @param type type of cell
      */
-    public Cell(Type type) {
+    public Cell(CellType type) {
         this.type = type;
     }
 
-    public Type getType() {
+    public CellType getType() {
         return type;
     }
 
@@ -37,7 +28,7 @@ public class Cell {
      * @return true if WALL
      */
     public boolean isWall() {
-        return type == Type.WALL;
+        return type == CellType.WALL;
     }
 
     /**
@@ -45,7 +36,7 @@ public class Cell {
      * @return true if EXIT
      */
     public boolean isExit() {
-        return type == Type.EXIT;
+        return type == CellType.EXIT;
     }
 
     /**
@@ -87,6 +78,7 @@ public class Cell {
             case WALL  -> '#';
             case FLOOR -> '.';
             case EXIT  -> 'E';
+            default    -> '.';
         };
     }
 }

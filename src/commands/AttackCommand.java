@@ -12,4 +12,7 @@ public class AttackCommand implements Command {
     public String execute(String arg1, String arg2) {
         return game.attack(arg1);
     }
+
+    @Override
+    public String getDescription() { return "Attack during combat: attack <power|spell>"; }
 }

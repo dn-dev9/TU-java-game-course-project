@@ -16,28 +16,6 @@ import java.util.Map;
  */
 public class Game {
 
-    /**
-     * All possible game states.
-     *   IDLE – no game in progress
-     *   EXPLORING – hero is moving through the map
-     *   COMBAT – hero is fighting a monster
-     *   LOOT_PENDING – hero stepped on a treasure and must decide equip/discard
-     *   LEVEL_UP – hero advanced to the next level and must distribute stat points
-     *   LEVEL_COMPLETE – hero reached the exit; waiting to proceed
-     *   GAME_OVER – hero died
-     *   VICTORY – hero went through all levels
-     */
-    public enum State {
-        IDLE,
-        EXPLORING,
-        COMBAT,
-        LOOT_PENDING,
-        LEVEL_UP,
-        LEVEL_COMPLETE,
-        GAME_OVER,
-        VICTORY
-    }
-
      // CONSTANTS
     static final int MAX_LEVEL = 5;
     private static final Map<String, int[]> DIRECTION_DELTAS = new HashMap<>();
@@ -329,7 +307,7 @@ public class Game {
 
     /**
      * Finalises level-up point distribution if all points have been spent,
-     * transitioning back to {@code EXPLORING}.
+     * transitioning back to  EXPLORING.
      *
      * @return confirmation with updated stats, or an error if points remain
      */
@@ -377,27 +355,6 @@ public class Game {
                 + map.getExitRow() + ", " + map.getExitCol() + ").\n"
                 + "You have 30 points to distribute. Use: allocate <strength|mana|health> <points>\n"
                 + showMap();
-    }
-
-    /**
-     * @return a list of all available game commands
-     */
-    public String help() {
-        return "=== GAME COMMANDS ===\n"
-                + "new_game <race>           - Start new game (human/mage/warrior)\n"
-                + "load_game <file>          - Load saved game\n"
-                + "save_game <file>          - Save current game\n"
-                + "load_level <number>       - Load level from file (level<N>.txt)\n"
-                + "show_map                  - Display the dungeon map\n"
-                + "stats                     - Show hero statistics\n"
-                + "inventory                 - Show equipped items\n"
-                + "move <up|down|left|right> - Move the hero\n"
-                + "attack <power|spell>      - Attack during combat\n"
-                + "combat_status             - Show combat health bars\n"
-                + "loot <equip|discard>      - Handle a found treasure\n"
-                + "next_level                - Advance to next level (at exit)\n"
-                + "allocate <stat> <pts>     - Distribute level-up points\n"
-                + "allocate_done             - Confirm point distribution";
     }
 
     public State getState() { return state; }

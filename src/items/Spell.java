@@ -1,5 +1,7 @@
 package items;
 
+import model.Hero;
+
 /**
  * Spell item that multiplies the hero's mana-based attack damage.
  * When a hero chooses spell attack, their spell attack damage is multiplied by (1 + bonusPercent / 100)
@@ -16,4 +18,7 @@ public class Spell extends Item {
 
     @Override
     public String getType() { return "spell"; }
+
+    @Override
+    public void equip(Hero hero) { hero.setSpell(this); }
 }

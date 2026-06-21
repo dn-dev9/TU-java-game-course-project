@@ -4,6 +4,7 @@ import items.Armor;
 import items.Item;
 import items.Spell;
 import items.Weapon;
+import model.race.Race;
 
 /**
  * Represents the player's hero character
@@ -21,7 +22,7 @@ import items.Weapon;
  */
 public class Hero {
 
-    private final String race;
+    private final Race race;
     private int strength;
     private int mana;
     private int maxHealth;
@@ -36,31 +37,17 @@ public class Hero {
     /**
      * Starting equipment is a Sword (+20%) and Fireball (+20%).
      *
-     * @param race "human", "mage", "warrior"
+     * @param raceName "human", "mage", "warrior"
      */
-    public Hero(String race) {
-        this.race = race.toLowerCase();
+    public Hero(String raceName) {
+        this.race = Race.fromString(raceName);
         this.position = new Position(0, 0);
         this.alive = true;
         this.pendingPoints = 0;
-        initStats();
+        race.applyBaseStats(this);
         this.weapon = new Weapon("Sword", 20.0);
         this.spell = new Spell("Fireball", 20.0);
         this.armor = null;
-    }
-
-    /** initialises base stats according to race. */
-    private void initStats() {
-        switch (race) {
-            case "mage":
-                strength = 10; mana = 40; break;
-            case "warrior":
-                strength = 40; mana = 10; break;
-            default: // human
-                strength = 30; mana = 20; break;
-        }
-        maxHealth = 50;
-        currentHealth = maxHealth;
     }
 
     // -------------
@@ -115,28 +102,15 @@ public class Hero {
     // -------------
 
     /**
-     * Allocates points to the specified stat
+     * Allocates points to the specified stat using the Stat enum,
      * deducts from pending points.
      *
-     * @param stat   one of "strength", "mana", "health"
-     * @param points number of points to add (must be > 0 and <= pendingPoints)
+     * @param statName one of "strength", "mana", "health"
+     * @param points   number of points to add (must be > 0 and <= pendingPoints)
      * @throws IllegalArgumentException if stat name is unknown
      */
-    public void allocate(String stat, int points) {
-        switch (stat.toLowerCase()) {
-            case "strength":
-                strength += points;
-                break;
-            case "mana":
-                mana += points;
-                break;
-            case "health":
-                maxHealth += points;
-                currentHealth += points;
-                break;
-            default:
-                throw new IllegalArgumentException("Unknown stat: " + stat);
-        }
+    public void allocate(String statName, int points) {
+        Stat.fromString(statName).apply(this, points);
         pendingPoints -= points;
     }
 
@@ -145,21 +119,19 @@ public class Hero {
     // -------------
 
     /**
-     * Equips an item, replacing the previous in the same slot type
+     * Equips an item, replacing the previous in the same slot type.
      *
      * @param item the item to equip
      */
     public void equip(Item item) {
-        if (item instanceof Weapon) weapon = (Weapon) item;
-        else if (item instanceof Spell) spell  = (Spell)  item;
-        else if (item instanceof Armor) armor  = (Armor)  item;
+        item.equip(this);
     }
 
     // -------------
     // Getters / setters
     // -------------
 
-    public String getRace() { return race; }
+    public String getRace() { return race.getName(); }
 
     public int getStrength() { return strength; }
 

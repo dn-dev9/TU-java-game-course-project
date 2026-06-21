@@ -12,4 +12,7 @@ public class AllocateDoneCommand implements Command {
     public String execute(String arg1, String arg2) {
         return game.allocateDone();
     }
+
+    @Override
+    public String getDescription() { return "Confirm level-up point distribution"; }
 }

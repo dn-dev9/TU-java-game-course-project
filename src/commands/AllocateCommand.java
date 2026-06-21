@@ -12,4 +12,7 @@ public class AllocateCommand implements Command {
     public String execute(String arg1, String arg2) {
         return game.allocate(arg1, arg2);
     }
+
+    @Override
+    public String getDescription() { return "Distribute level-up points: allocate <strength|mana|health> <points>"; }
 }

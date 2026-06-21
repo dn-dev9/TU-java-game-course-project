@@ -12,4 +12,7 @@ public class LoadGameCommand implements Command {
     public String execute(String arg1, String arg2) {
         return game.loadGame(arg1);
     }
+
+    @Override
+    public String getDescription() { return "Load a saved game: load_game <file>"; }
 }

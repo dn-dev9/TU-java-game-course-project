@@ -1,5 +1,7 @@
 package items;
 
+import model.Hero;
+
 /**
  * Armor item
  * all incoming damage is calculated by (1 - bonusPercent / 100) => reducing it by the bonus percentage.
@@ -16,4 +18,7 @@ public class Armor extends Item {
 
     @Override
     public String getType() { return "armor"; }
+
+    @Override
+    public void equip(Hero hero) { hero.setArmor(this); }
 }

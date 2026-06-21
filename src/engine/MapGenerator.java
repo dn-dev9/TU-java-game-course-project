@@ -6,6 +6,7 @@ import items.Item;
 import items.Spell;
 import items.Weapon;
 import model.Cell;
+import model.CellType;
 import model.GameMap;
 import model.Monster;
 import model.Position;
@@ -103,7 +104,7 @@ public class MapGenerator {
         for (int r = 0; r < rows; r++) {
             List<Cell> row = new ArrayList<>();
             for (int c = 0; c < cols; c++)
-                row.add(new Cell(Cell.Type.WALL));
+                row.add(new Cell(CellType.WALL));
             cells.add(row);
         }
         carve(cells, 1, 1, rows, cols);
@@ -122,7 +123,7 @@ public class MapGenerator {
      * @param cols total column count
      */
     private static void carve(List<List<Cell>> cells, int r, int c, int rows, int cols) {
-        cells.get(r).set(c, new Cell(Cell.Type.FLOOR));
+        cells.get(r).set(c, new Cell(CellType.FLOOR));
         List<int[]> dirs = new ArrayList<>(DIRS);
         Collections.shuffle(dirs, RNG);
         for (int[] d : dirs) {
@@ -130,7 +131,7 @@ public class MapGenerator {
             int nc = c + d[1];
             if (nr > 0 && nr < rows - 1 && nc > 0 && nc < cols - 1
                     && cells.get(nr).get(nc).isWall()) {
-                cells.get(r + d[0] / 2).set(c + d[1] / 2, new Cell(Cell.Type.FLOOR));
+                cells.get(r + d[0] / 2).set(c + d[1] / 2, new Cell(CellType.FLOOR));
                 carve(cells, nr, nc, rows, cols);
             }
         }

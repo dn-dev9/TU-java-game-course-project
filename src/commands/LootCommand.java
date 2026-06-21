@@ -12,4 +12,7 @@ public class LootCommand implements Command {
     public String execute(String arg1, String arg2) {
         return game.loot(arg1);
     }
+
+    @Override
+    public String getDescription() { return "Handle a found treasure: loot <equip|discard>"; }
 }

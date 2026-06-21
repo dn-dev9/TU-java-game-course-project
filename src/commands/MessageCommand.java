@@ -13,4 +13,7 @@ public class MessageCommand implements Command {
     public String execute(String arg1, String arg2) {
         return message;
     }
+
+    @Override
+    public String getDescription() { return ""; }
 }

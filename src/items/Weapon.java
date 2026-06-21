@@ -1,5 +1,7 @@
 package items;
 
+import model.Hero;
+
 /**
  * Weapon item
  * When a hero chooses a Weapon attack
@@ -17,4 +19,7 @@ public class Weapon extends Item {
 
     @Override
     public String getType() { return "weapon"; }
+
+    @Override
+    public void equip(Hero hero) { hero.setWeapon(this); }
 }

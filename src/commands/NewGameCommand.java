@@ -12,4 +12,7 @@ public class NewGameCommand implements Command {
     public String execute(String arg1, String arg2) {
         return game.newGame(arg1);
     }
+
+    @Override
+    public String getDescription() { return "Start a new game: new_game <human|mage|warrior>"; }
 }

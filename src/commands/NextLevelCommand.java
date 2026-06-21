@@ -12,4 +12,7 @@ public class NextLevelCommand implements Command {
     public String execute(String arg1, String arg2) {
         return game.nextLevel();
     }
+
+    @Override
+    public String getDescription() { return "Advance to the next level (use at the exit)"; }
 }

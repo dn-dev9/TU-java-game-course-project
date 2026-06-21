@@ -5,6 +5,7 @@ import items.Item;
 import items.Spell;
 import items.Weapon;
 import model.Cell;
+import model.CellType;
 import model.GameMap;
 import model.Hero;
 import model.Monster;
@@ -96,7 +97,7 @@ public class FileManager {
      * @param hero the hero whose stats and equipment to save
      * @param map the current GameMap
      * @param currentLevel the level number
-     * @param state the Game.State name string
+     * @param state the State name string [CHANGED NOW]
      * @throws IOException if the file cannot be written
      */
     public static void saveGame(String path, Hero hero, GameMap map,
@@ -237,9 +238,9 @@ public class FileManager {
 
     /** Converts a saved character to the appropriate Cell type. */
     private static Cell charToCell(char ch) {
-        if (ch == '#') return new Cell(Cell.Type.WALL);
-        if (ch == 'E') return new Cell(Cell.Type.EXIT);
-        return new Cell(Cell.Type.FLOOR);
+        if (ch == '#') return new Cell(CellType.WALL);
+        if (ch == 'E') return new Cell(CellType.EXIT);
+        return new Cell(CellType.FLOOR);
     }
 
     /** Returns "NONE" for a null item, otherwise "name|bonusPercent". */

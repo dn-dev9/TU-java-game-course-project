@@ -12,4 +12,7 @@ public class SaveGameCommand implements Command {
     public String execute(String arg1, String arg2) {
         return game.saveGame(arg1);
     }
+
+    @Override
+    public String getDescription() { return "Save the current game to a file: save_game <file>"; }
 }

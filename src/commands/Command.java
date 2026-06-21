@@ -13,4 +13,11 @@ public interface Command {
      * @return result message
      */
     String execute(String arg1, String arg2);
+
+    /**
+     * Used by HelpCommand to build the help listing dynamically.
+     *
+     * @return a short description of what this command does, or "" to hide from help
+     */
+    String getDescription();
 }

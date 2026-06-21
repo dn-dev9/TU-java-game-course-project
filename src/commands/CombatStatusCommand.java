@@ -12,4 +12,7 @@ public class CombatStatusCommand implements Command {
     public String execute(String arg1, String arg2) {
         return game.combatStatus();
     }
+
+    @Override
+    public String getDescription() { return "Show combat health bars"; }
 }

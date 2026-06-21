@@ -12,4 +12,7 @@ public class ShowMapCommand implements Command {
     public String execute(String arg1, String arg2) {
         return game.showMap();
     }
+
+    @Override
+    public String getDescription() { return "Display the dungeon map"; }
 }

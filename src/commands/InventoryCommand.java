@@ -12,4 +12,7 @@ public class InventoryCommand implements Command {
     public String execute(String arg1, String arg2) {
         return game.inventory();
     }
+
+    @Override
+    public String getDescription() { return "Show equipped items"; }
 }

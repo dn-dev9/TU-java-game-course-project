@@ -1,5 +1,7 @@
 package items;
 
+import model.Hero;
+
 /**
  * Abstract base class for all items in the game
  * Items provide a bonus percentage modifier applied during combat calculations.
@@ -32,6 +34,13 @@ public abstract class Item {
      * @return item type string
      */
     public abstract String getType();
+
+    /**
+     * Equips this item onto the hero placing it in the correct slot.
+     *
+     * @param hero the hero to equip the item on
+     */
+    public abstract void equip(Hero hero);
 
     /**
      * serialises an item preparing it for saving to a file

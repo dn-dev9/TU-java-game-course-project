@@ -12,4 +12,7 @@ public class MoveCommand implements Command {
     public String execute(String arg1, String arg2) {
         return game.move(arg1);
     }
+
+    @Override
+    public String getDescription() { return "Move the hero: move <up|down|left|right>"; }
 }

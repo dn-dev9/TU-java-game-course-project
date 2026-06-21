@@ -139,7 +139,7 @@ public class GameMap {
     public void markExit(int row, int col) {
         exitRow = row;
         exitCol = col;
-        cells.get(row).set(col, new Cell(Cell.Type.EXIT));
+        cells.get(row).set(col, new Cell(CellType.EXIT));
     }
 
     /**

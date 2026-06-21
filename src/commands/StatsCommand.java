@@ -12,4 +12,7 @@ public class StatsCommand implements Command {
     public String execute(String arg1, String arg2) {
         return game.stats();
     }
+
+    @Override
+    public String getDescription() { return "Show hero statistics"; }
 }
